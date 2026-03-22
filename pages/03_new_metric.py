@@ -9,14 +9,7 @@ import pandas as pd
 from datetime import datetime
 from data.seed_data import DOMAINS
 from utils.fuzzy import detect_duplicates
-from utils.nav import render_sidebar
 
-st.set_page_config(page_title="Register Metric · Semantics", page_icon="◈", layout="wide")
-
-# ---------------------------------------------------------------------------
-# Sidebar
-# ---------------------------------------------------------------------------
-render_sidebar()
 
 # ---------------------------------------------------------------------------
 # Session state init
@@ -62,7 +55,7 @@ def next_metric_id(domain_id: str, metrics: list) -> str:
 # ---------------------------------------------------------------------------
 # Page header
 # ---------------------------------------------------------------------------
-st.title("➕ Register a New Metric")
+st.markdown("# :material/add: Register a New Metric")
 
 # Framing card
 with st.container(border=True):
@@ -97,19 +90,19 @@ if st.session_state.new_metric_submitted:
 
     col_a, col_b, col_c = st.columns(3)
     with col_a:
-        if st.button("📋 View in Metric Catalog", use_container_width=True):
+        if st.button("📋 View in Metric Catalog", width="stretch"):
             st.session_state.selected_metric_id = submitted["metric_id"]
             st.session_state.new_metric_submitted = None
             st.switch_page("pages/01_catalog.py")
     with col_b:
-        if st.button("📝 Submit a Change Request to promote to T2", use_container_width=True):
+        if st.button("📝 Submit a Change Request to promote to T2", width="stretch"):
             st.session_state.cr_prefill_domain = submitted.get("domain_id")
             st.session_state.cr_prefill_title = f"Promote {submitted['display_name']} to T2"
             st.session_state.cr_prefill_description = f"Requesting promotion of {submitted['metric_id']} ({submitted['display_name']}) from T3 draft to T2 operational metric."
             st.session_state.new_metric_submitted = None
             st.switch_page("pages/04_change_requests.py")
     with col_c:
-        if st.button("➕ Register another metric", use_container_width=True):
+        if st.button("➕ Register another metric", width="stretch"):
             st.session_state.new_metric_submitted = None
             st.rerun()
     st.stop()
@@ -251,7 +244,7 @@ with form_col:
             )
 
         st.divider()
-        submitted = st.form_submit_button("Register Metric →", type="primary", use_container_width=True)
+        submitted = st.form_submit_button("Register Metric →", type="primary", width="stretch")
 
     # ── Fuzzy dedup (outside form, reactive) ──────────────────────────────
     if description or calculation:

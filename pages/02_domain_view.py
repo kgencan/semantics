@@ -6,14 +6,8 @@ Per-domain dashboard: champion info, metric breakdown, implementation coverage, 
 import streamlit as st
 import pandas as pd
 from data.seed_data import DOMAINS, METRIC_TECHNICAL_SYNC
-from utils.nav import render_sidebar
+from utils.kpi import kpi
 
-st.set_page_config(page_title="Domain View · Semantics", page_icon="◈", layout="wide")
-
-# ---------------------------------------------------------------------------
-# Sidebar
-# ---------------------------------------------------------------------------
-render_sidebar()
 
 # ---------------------------------------------------------------------------
 # Session state init
@@ -41,7 +35,7 @@ def get_implementation_stage(m):
 # ---------------------------------------------------------------------------
 # Page header
 # ---------------------------------------------------------------------------
-st.title("🏛 Domain View")
+st.markdown("# :material/account_tree: Domain View")
 st.caption("Per-domain dashboard — metrics, ownership, implementation coverage, and reconciliation findings.")
 
 # ---------------------------------------------------------------------------
@@ -62,11 +56,13 @@ for tab, domain in zip(tabs, DOMAINS):
 
         # ── Summary metrics ────────────────────────────────────────────────
         m1, m2, m3, m4, m5 = st.columns(5)
-        m1.metric("Total Metrics", len(domain_metrics))
-        m2.metric("Approved", sum(1 for m in domain_metrics if m["status"] == "approved"))
-        m3.metric("Under Review", sum(1 for m in domain_metrics if m["status"] == "under_review"))
-        m4.metric("Open Findings", len(open_findings), delta=f"{len(critical_findings)} critical" if critical_findings else None, delta_color="inverse" if critical_findings else "off")
-        m5.metric("Draft / Exploratory", sum(1 for m in domain_metrics if m["status"] == "draft"))
+        kpi(m1, "Total Metrics",      len(domain_metrics))
+        kpi(m2, "Approved",           sum(1 for m in domain_metrics if m["status"] == "approved"))
+        kpi(m3, "Under Review",       sum(1 for m in domain_metrics if m["status"] == "under_review"))
+        kpi(m4, "Open Findings",      len(open_findings),
+            f"↑ {len(critical_findings)} critical" if critical_findings else None,
+            "#b91c1c" if critical_findings else "#7a8296")
+        kpi(m5, "Draft / Exploratory", sum(1 for m in domain_metrics if m["status"] == "draft"))
 
         st.divider()
 
@@ -96,8 +92,11 @@ for tab, domain in zip(tabs, DOMAINS):
                 implemented = sv_count + dbt_count
                 coverage_pct = implemented / len(domain_metrics)
 
-                st.markdown("**Implementation Coverage**")
-                st.progress(coverage_pct, text=f"{round(coverage_pct * 100)}% have dbt model or Semantic View")
+                pct_label, pct_val = st.columns([5, 1])
+                pct_label.markdown("**Implementation Coverage**")
+                pct_val.markdown(f"<div style='text-align:right;font-size:13px;font-weight:700;color:#446B5C;padding-top:2px;'>{round(coverage_pct * 100)}%</div>", unsafe_allow_html=True)
+                st.progress(coverage_pct)
+                st.caption(f"{sv_count} Semantic View · {dbt_count} dbt Model · {reg_count} Registry Only")
                 col_s1, col_s2, col_s3 = st.columns(3)
                 col_s1.metric("Semantic View", sv_count)
                 col_s2.metric("dbt Model", dbt_count)
@@ -130,7 +129,7 @@ for tab, domain in zip(tabs, DOMAINS):
                     "Stage": get_implementation_stage(m),
                     "Owner": m["owner_name"],
                 })
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
         else:
             st.caption("No metrics registered for this domain.")
 

@@ -6,14 +6,7 @@ Insurance terminology linked to governed metrics.
 import streamlit as st
 import pandas as pd
 from data.seed_data import DICTIONARY_TERMS, METRIC_DICTIONARY_LINKS, DOMAINS
-from utils.nav import render_sidebar
 
-st.set_page_config(page_title="Data Dictionary · Semantics", page_icon="◈", layout="wide")
-
-# ---------------------------------------------------------------------------
-# Sidebar
-# ---------------------------------------------------------------------------
-render_sidebar()
 
 # ---------------------------------------------------------------------------
 # Session state init
@@ -32,7 +25,7 @@ DOMAIN_MAP = {d["domain_id"]: d["domain_name"] for d in DOMAINS}
 # ---------------------------------------------------------------------------
 # Page header
 # ---------------------------------------------------------------------------
-st.title("📖 Data Dictionary")
+st.markdown("# :material/book: Data Dictionary")
 st.caption(
     f"{len(DICTIONARY_TERMS)} governed terms · Linked to metrics in the Semantics registry.  \n"
     "These terms ensure metric calculations reference standardized business definitions."
@@ -71,7 +64,7 @@ with left_col:
         if st.button(
             term["term"] + (f" ({linked_count})" if linked_count else ""),
             key=f"term_btn_{term['term']}",
-            use_container_width=True,
+            width="stretch",
             type="primary" if is_selected else "secondary",
         ):
             st.session_state.selected_dict_term = term["term"]
@@ -119,7 +112,7 @@ with right_col:
                             "Tier": f"{tier_icon} {m['tier']}",
                             "Status": f"{status_icon} {m['status'].replace('_', ' ').title()}",
                         })
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 
                 # Link to catalog
                 for l in links:

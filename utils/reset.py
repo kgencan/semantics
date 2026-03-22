@@ -24,6 +24,6 @@ def reset_demo() -> None:
 def render_reset_button() -> None:
     """Render the persistent Reset Demo button in the sidebar."""
     st.sidebar.divider()
-    if st.sidebar.button("↺  Reset Demo", type="secondary", use_container_width=True, help="Restore all demo data to its original state"):
+    if st.sidebar.button("↺  Reset Demo", type="secondary", width="stretch", help="Restore all demo data to its original state"):
         reset_demo()
         st.rerun()

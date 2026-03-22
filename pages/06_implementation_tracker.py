@@ -6,14 +6,7 @@ Pipeline view: Registry Only → dbt Model → Snowflake Semantic View.
 import streamlit as st
 import pandas as pd
 from data.seed_data import DOMAINS, METRIC_TECHNICAL_SYNC
-from utils.nav import render_sidebar
 
-st.set_page_config(page_title="Implementation Tracker · Semantics", page_icon="◈", layout="wide")
-
-# ---------------------------------------------------------------------------
-# Sidebar
-# ---------------------------------------------------------------------------
-render_sidebar()
 
 # ---------------------------------------------------------------------------
 # Session state init
@@ -44,7 +37,7 @@ STAGE_ICON = {
 # ---------------------------------------------------------------------------
 # Page header
 # ---------------------------------------------------------------------------
-st.title("🔧 Implementation Tracker")
+st.markdown("# :material/build: Implementation Tracker")
 st.caption("Track every metric from registry to dbt model to Snowflake Semantic View.")
 
 # Sync status bar
@@ -56,7 +49,7 @@ with sync_col2:
         "↻ Sync from dbt",
         disabled=True,
         help="Requires active Snowflake + dbt Cloud connection. In production, triggers a CI/CD run that syncs dbt metadata into the governance registry.",
-        use_container_width=False,
+        width="content",
     )
 
 st.divider()
@@ -162,7 +155,7 @@ for domain in DOMAINS:
                 "Tests": tests,
             })
 
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 
         # Gap warnings
         gaps = [m for m in domain_metrics if m["status"] == "approved" and m["tier"] == "T1" and get_stage(m) == "Registry Only"]

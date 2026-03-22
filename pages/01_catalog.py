@@ -6,14 +6,7 @@ Searchable, filterable registry of all governed metrics.
 import streamlit as st
 import pandas as pd
 from data.seed_data import DOMAINS, DIMENSIONS, METRIC_DIMENSIONS, METRIC_TAGS, METRIC_DEPENDENCIES, METRIC_DICTIONARY_LINKS, METRIC_TECHNICAL_SYNC
-from utils.nav import render_sidebar
 
-st.set_page_config(page_title="Metric Catalog · Semantics", page_icon="◈", layout="wide")
-
-# ---------------------------------------------------------------------------
-# Sidebar
-# ---------------------------------------------------------------------------
-render_sidebar()
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -43,7 +36,7 @@ if "metrics" not in st.session_state:
 # ---------------------------------------------------------------------------
 # Page header
 # ---------------------------------------------------------------------------
-st.title("📋 Metric Catalog")
+st.markdown("# :material/table_chart: Metric Catalog")
 st.caption(f"{len(st.session_state.metrics)} metrics registered across {len(DOMAINS)} domains")
 
 # ---------------------------------------------------------------------------
@@ -131,7 +124,7 @@ st.caption(f"Showing {len(metrics)} metric(s)")
 
 event = st.dataframe(
     df,
-    use_container_width=True,
+    width="stretch",
     hide_index=True,
     on_select="rerun",
     selection_mode="single-row",
@@ -222,7 +215,7 @@ if selected_rows:
                                 "Default": "✅" if md["is_default"] else "—",
                                 "Values": (dim.get("possible_values") or "")[:60],
                             })
-                    st.dataframe(pd.DataFrame(dim_rows), use_container_width=True, hide_index=True)
+                    st.dataframe(pd.DataFrame(dim_rows), width="stretch", hide_index=True)
                 else:
                     st.caption("No dimensions registered for this metric.")
 
@@ -279,7 +272,7 @@ if selected_rows:
                 links = [l for l in METRIC_DICTIONARY_LINKS if l["metric_id"] == m["metric_id"]]
                 if links:
                     link_rows = [{"Term": l["dictionary_term"], "Relationship": l["relationship"]} for l in links]
-                    st.dataframe(pd.DataFrame(link_rows), use_container_width=True, hide_index=True)
+                    st.dataframe(pd.DataFrame(link_rows), width="stretch", hide_index=True)
                 else:
                     st.caption("No dictionary links registered for this metric.")
 

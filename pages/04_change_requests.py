@@ -8,14 +8,7 @@ import pandas as pd
 from datetime import datetime
 from data.seed_data import DOMAINS
 from utils.fuzzy import detect_duplicates
-from utils.nav import render_sidebar
 
-st.set_page_config(page_title="Change Requests · Semantics", page_icon="◈", layout="wide")
-
-# ---------------------------------------------------------------------------
-# Sidebar
-# ---------------------------------------------------------------------------
-render_sidebar()
 
 # ---------------------------------------------------------------------------
 # Session state init
@@ -48,7 +41,7 @@ if prefill_description and "cr_form_description" not in st.session_state:
 # ---------------------------------------------------------------------------
 # Page header
 # ---------------------------------------------------------------------------
-st.title("📝 Change Requests")
+st.markdown("# :material/edit_note: Change Requests")
 
 if st.session_state.get("cr_form_domain") or st.session_state.get("cr_form_title"):
     st.success("📋 Form pre-filled from a Reconciliation finding. Review and submit.")
@@ -141,7 +134,7 @@ with form_col:
                 height=80,
             )
 
-        submitted = st.form_submit_button("Submit Request →", type="primary", use_container_width=True)
+        submitted = st.form_submit_button("Submit Request →", type="primary", width="stretch")
 
     if submitted:
         errors = []
@@ -209,7 +202,7 @@ with table_col:
                 "Status": cr["status"].title(),
                 "Submitted": cr["created_at"][:10],
             })
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 
         # Workflow info
         st.divider()

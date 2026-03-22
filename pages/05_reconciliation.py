@@ -7,14 +7,8 @@ interactive acknowledge/dismiss, and pre-fill to Change Requests.
 import streamlit as st
 import pandas as pd
 from data.seed_data import DOMAINS, METRICS as SEED_METRICS
-from utils.nav import render_sidebar
+from utils.kpi import kpi
 
-st.set_page_config(page_title="Reconciliation · Semantics", page_icon="◈", layout="wide")
-
-# ---------------------------------------------------------------------------
-# Sidebar
-# ---------------------------------------------------------------------------
-render_sidebar()
 
 # ---------------------------------------------------------------------------
 # Session state init
@@ -57,7 +51,7 @@ STATUS_ICON = {
 # ---------------------------------------------------------------------------
 # Page header
 # ---------------------------------------------------------------------------
-st.title("⚡ Reconciliation Dashboard")
+st.markdown("# :material/sync: Reconciliation Dashboard")
 st.caption("Last reconciliation run: **2026-03-12** · 40 metrics analyzed · 18 findings generated · Semantics Reconciliation Engine v0.2")
 
 # Banner if new metrics were registered since last run
@@ -77,7 +71,7 @@ with col_btn:
         "🔄 Re-run Analysis",
         disabled=True,
         help="Requires Snowflake Cortex connection. In production, triggers the reconciliation engine against the full metric registry.",
-        use_container_width=True,
+        width="stretch",
     )
 
 st.divider()
@@ -95,13 +89,17 @@ open_count = sum(1 for f in log if f["status"] == "open")
 resolved_count = sum(1 for f in log if f["status"] in ("resolved", "dismissed"))
 acknowledged_count = sum(1 for f in log if f["status"] == "acknowledged")
 
+critical_open = sum(1 for f in log if f["severity"] == "critical" and f["status"] == "open")
+warning_open  = sum(1 for f in log if f["severity"] == "warning"  and f["status"] == "open")
+info_open     = sum(1 for f in log if f["severity"] == "info"     and f["status"] == "open")
+
 c1, c2, c3, c4, c5, c6 = st.columns(6)
-c1.metric("Total Findings", total)
-c2.metric("🔴 Critical", sum(1 for f in log if f["severity"] == "critical" and f["status"] == "open"), delta=f"{sum(1 for f in log if f['severity']=='critical')} total", delta_color="inverse")
-c3.metric("🟠 Warning", sum(1 for f in log if f["severity"] == "warning" and f["status"] == "open"), delta=f"{sum(1 for f in log if f['severity']=='warning')} total", delta_color="off")
-c4.metric("🔵 Info", sum(1 for f in log if f["severity"] == "info" and f["status"] == "open"), delta=f"{sum(1 for f in log if f['severity']=='info')} total", delta_color="off")
-c5.metric("🔓 Open", open_count, delta_color="inverse")
-c6.metric("✅ Resolved / Dismissed", resolved_count + acknowledged_count)
+kpi(c1, "Total Findings",        total)
+kpi(c2, "Critical",              critical_open, accent_color="#B91C1C")
+kpi(c3, "Warning",               warning_open,  accent_color="#D97706")
+kpi(c4, "Info",                  info_open,  accent_color="#2563EB")
+kpi(c5, "Open",                  open_count)
+kpi(c6, "Resolved / Dismissed",  resolved_count + acknowledged_count)
 
 st.divider()
 
@@ -109,9 +107,8 @@ st.divider()
 # Cross-Domain Conflict Map  (the hero visual)
 # ---------------------------------------------------------------------------
 st.subheader("Cross-Domain Conflict Map")
-st.caption("Open findings between domain pairs. Darker = more conflicts.")
+st.caption("Colored by worst severity of open findings between each domain pair.")
 
-# Build matrix
 short_names = {
     "Customer & Party": "Customer",
     "Policy & Coverage": "Policy",
@@ -123,7 +120,11 @@ short_names = {
     "Investment": "Investment",
 }
 snames = list(short_names.values())
-matrix = pd.DataFrame(0, index=snames, columns=snames)
+
+# Build per-severity count + worst-severity matrices
+sev_rank = {"critical": 3, "warning": 2, "info": 1}
+sev_counts = {(a, b): {"critical": 0, "warning": 0, "info": 0} for a in snames for b in snames}
+sev_matrix = {(a, b): None for a in snames for b in snames}
 
 for f in log:
     if f["status"] not in ("open", "acknowledged"):
@@ -131,24 +132,66 @@ for f in log:
     da = short_names.get(f["domain_a"], f["domain_a"])
     db = short_names.get(f.get("domain_b", ""), "")
     if da and db and da != db:
-        matrix.loc[da, db] += 1
-        matrix.loc[db, da] += 1
+        sv = f["severity"]
+        for pair in [(da, db), (db, da)]:
+            sev_counts[pair][sv] += 1
+            if sev_matrix[pair] is None or sev_rank[sv] > sev_rank.get(sev_matrix[pair], 0):
+                sev_matrix[pair] = sv
 
-# Render with manual color styling (no matplotlib dependency)
-def _cell_color(v):
-    if v == 0:
-        return "background-color: #FFF; color: #444444"
-    elif v == 1:
-        return "background-color: #FAB972; color: #ffe0cc; font-weight: bold"
-    elif v == 2:
-        return "background-color: #b22000; color: #ffe0cc; font-weight: bold"
-    else:
-        return "background-color: #cc0000; color: #ffffff; font-weight: bold"
+def cell_label(pair):
+    c = sev_counts[pair]
+    parts = []
+    if c["critical"]: parts.append(f"{c['critical']} CRIT.")
+    if c["warning"]:  parts.append(f"{c['warning']} WARN.")
+    if c["info"]:     parts.append(f"{c['info']} INFO")
+    return " | ".join(parts)
 
-styled = matrix.style.applymap(_cell_color).format(
-    lambda v: str(v) if v > 0 else "·"
-)
-st.dataframe(styled, use_container_width=True)
+# Severity → (background, text color)
+SEV_STYLE = {
+    "critical": ("#FEE2E2", "#B91C1C"),
+    "warning":  ("#FEF3C7", "#92400E"),
+    "info":     ("#EFF6FF", "#1D4ED8"),
+}
+
+# Shared cell style (no text-transform — consistent with row labels)
+_TH_BASE = "padding:7px 12px;font-size:11px;font-weight:700;color:#3d4452;background:#eceef2;border:1px solid #d1d5de;white-space:nowrap;"
+TH       = f'style="{_TH_BASE}text-align:left;"'
+TH_COL   = f'style="{_TH_BASE}text-align:center;"'
+TD_LABEL = f'style="{_TH_BASE}"'
+TD_SELF  = 'style="background:#f5f6f8;border:1px solid #e4e6ed;"'
+TD_EMPTY = 'style="background:#ffffff;border:1px solid #e4e6ed;text-align:center;color:#d1d5de;font-size:11px;"'
+
+header_cells = "".join(f"<th {TH_COL}>{n}</th>" for n in snames)
+header_row = f"<tr><th {TH}></th>{header_cells}</tr>"
+
+body_rows = []
+for row in snames:
+    cells = [f"<td {TD_LABEL}>{row}</td>"]
+    for col in snames:
+        if row == col:
+            cells.append(f"<td {TD_SELF}></td>")
+        else:
+            sev = sev_matrix[(row, col)]
+            if sev is None:
+                cells.append(f"<td {TD_EMPTY}>—</td>")
+            else:
+                bg, _ = SEV_STYLE[sev]
+                label  = cell_label((row, col))
+                cells.append(
+                    f'<td style="background:{bg};color:#111318;border:1px solid #d1d5de;'
+                    f'text-align:center;padding:7px 12px;font-size:11px;font-weight:600;white-space:nowrap;">'
+                    f"{label}</td>"
+                )
+    body_rows.append(f"<tr>{''.join(cells)}</tr>")
+
+st.markdown(f"""
+<div style="overflow-x:auto;">
+<table style="border-collapse:collapse;width:100%;">
+  <thead>{header_row}</thead>
+  <tbody>{''.join(body_rows)}</tbody>
+</table>
+</div>
+""", unsafe_allow_html=True)
 
 st.divider()
 
@@ -245,7 +288,7 @@ def render_finding_card(f):
 
             with btn1:
                 if status == "open":
-                    if st.button("👁 Acknowledge", key=f"ack_{f['finding_id']}", use_container_width=True):
+                    if st.button("👁 Acknowledge", key=f"ack_{f['finding_id']}", width="stretch"):
                         for item in st.session_state.reconciliation_log:
                             if item["finding_id"] == f["finding_id"]:
                                 item["status"] = "acknowledged"
@@ -254,7 +297,7 @@ def render_finding_card(f):
                         st.rerun()
 
             with btn2:
-                if st.button("🚫 Dismiss", key=f"dis_{f['finding_id']}", use_container_width=True):
+                if st.button("🚫 Dismiss", key=f"dis_{f['finding_id']}", width="stretch"):
                     for item in st.session_state.reconciliation_log:
                         if item["finding_id"] == f["finding_id"]:
                             item["status"] = "dismissed"
@@ -262,7 +305,7 @@ def render_finding_card(f):
                     st.rerun()
 
             with btn3:
-                if st.button("📝 Create Change Request →", key=f"cr_{f['finding_id']}", use_container_width=True):
+                if st.button("📝 Create Change Request →", key=f"cr_{f['finding_id']}", width="stretch"):
                     domain_id = next(
                         (d["domain_id"] for d in DOMAINS if d["domain_name"] == f["domain_a"]), None
                     )
@@ -278,7 +321,7 @@ def render_finding_card(f):
 
             if metric_a and f.get("metric_a_id"):
                 with _:
-                    if st.button(f"📋 View {f['metric_a_id']} →", key=f"view_{f['finding_id']}", use_container_width=True):
+                    if st.button(f"📋 View {f['metric_a_id']} →", key=f"view_{f['finding_id']}", width="stretch"):
                         st.session_state.selected_metric_id = f["metric_a_id"]
                         st.switch_page("pages/01_catalog.py")
 
